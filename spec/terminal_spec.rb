@@ -22,7 +22,7 @@ RSpec.describe Terminal do
       it 'pads with empty lines' do
         terminal = Terminal.new(tty, buffer)
 
-        expect(terminal.view).to eq [1, 2, 3, '', '']
+        expect(terminal.view).to eq [1, 2, 3, '']
       end
     end
 
@@ -33,7 +33,7 @@ RSpec.describe Terminal do
       it 'shows enough elements to fill the screen' do
         terminal = Terminal.new(tty, buffer, 3)
 
-        expect(terminal.view).to eq [4, 5, 6, 7, 8]
+        expect(terminal.view).to eq [4, 5, 6, 7]
       end
     end
   end

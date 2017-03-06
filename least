@@ -104,6 +104,9 @@ class Terminal
     tty.height
   end
 
+  # Array of lines representing what should appear on-screen
+  # FIXME: TTY#write_line adds a newline to each entry, meaning that we need
+  # one less than the entire height. This needs a better abstraction.
   def view
     if @paused
       pad(buffer[current_line_index...(current_line_index+current_height-1)])
