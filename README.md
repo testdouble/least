@@ -16,8 +16,7 @@ Once inside least, you have the following command keys:
 * `<Space>` - Pause/Resume
 * `Page up`/`Ctrl-u` - Going up a page
 * `Page down`/`Ctrl-d` - Going down a page
-* `Ctrl-n`/`k` - Go up one line
-* `Ctrl-d`/`j` - Go down one line
+* `Ctrl-p`/`k` - Go up one line
+* `Ctrl-n`/`j` - Go down one line
 
 ## Installation
-
