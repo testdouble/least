@@ -11,6 +11,8 @@ end
 KEY_CTRL_C = ?\C-c
 KEY_CTRL_P = ?\C-p
 KEY_CTRL_N = ?\C-n
+KEY_CTRL_U = ?\C-u
+KEY_CTRL_D = ?\C-d
 
 class ANSI
   ESC = 27.chr
@@ -115,13 +117,21 @@ class Terminal
     padding_needed = [0, current_height - arr.size].max
     arr + ([''] * padding_needed)
   end
-
-  def move_down
-    Terminal.new(tty, buffer, current_line_index + 1)
+  
+  def move_down_line
+    move_down 1
   end
 
-  def move_up
-    Terminal.new(tty, buffer, current_line_index - 1)
+  def move_up_line
+    move_up 1
+  end
+  
+  def move_down_page
+    move_down current_height
+  end
+
+  def move_up_page
+    move_up current_height
   end
 
   def pause
@@ -146,6 +156,16 @@ class Terminal
     view.each do |line|
       tty.write_line line
     end
+  end
+
+  private
+
+  def move_down(count)
+    Terminal.new(tty, buffer, current_line_index + count)
+  end
+
+  def move_up(count)
+    Terminal.new(tty, buffer, current_line_index - count)
   end
 end
 
@@ -179,9 +199,13 @@ class Least
     when KEY_CTRL_C
       raise "We should exit now"
     when KEY_CTRL_N
-      @terminal = terminal.move_down
+      @terminal = terminal.move_down_line
     when KEY_CTRL_P
-      @terminal = terminal.move_up
+      @terminal = terminal.move_up_line
+    when KEY_CTRL_D
+      @terminal = terminal.move_down_page
+    when KEY_CTRL_U
+      @terminal = terminal.move_up_page
     when ' '
       @terminal = terminal.toggle_pause
     end

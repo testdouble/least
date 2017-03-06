@@ -38,19 +38,19 @@ RSpec.describe Terminal do
     end
   end
 
-  describe '#move_down' do
+  describe '#move_down_line' do
     let(:buffer) { (1..3).to_a }
     let(:tty) { double(height: 5) }
 
     it 'increments the current line index' do
       initial_terminal = Terminal.new(tty, buffer)
 
-      result = initial_terminal.move_down
+      result = initial_terminal.move_down_line
 
       expect(result.current_line_index).to eq 1
     end
 
-    describe '#move_up' do
+    describe '#move_up_line' do
       let(:buffer) { (1..3).to_a }
       let(:tty) { double(height: 5) }
       let(:current_line_index) { 2 }
@@ -58,7 +58,7 @@ RSpec.describe Terminal do
       it 'increments the current line index' do
         initial_terminal = Terminal.new(tty, buffer, current_line_index)
 
-        result = initial_terminal.move_up
+        result = initial_terminal.move_up_line
 
         expect(result.current_line_index).to eq 1
       end
