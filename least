@@ -1,4 +1,8 @@
 #!/usr/bin/env ruby
+require 'io/console'
+require 'io/wait'
+
+KEY_CTRL_C = ?\C-c
 
 class ANSI
   ESC = 27.chr
@@ -18,20 +22,104 @@ class ANSI
   end
 end
 
-def main
-  print ANSI.clear
-  print ANSI.cursor_top
-  puts "This should be the top?"
-  loop do
-    break if STDIN.eof?
-
-    line = STDIN.readline
-    puts line
+class TTY < Struct.new(:console_file)
+  def self.with_tty(&block)
+    # Selecta reads data from stdin and writes it to stdout, so we can't draw
+    # UI and receive keystrokes through them. Fortunately, all modern
+    # Unix-likes provide /dev/tty, which IO.console gives us.
+    console_file = IO.console
+    tty = TTY.new(console_file)
+    block.call(tty)
   end
-rescue Interrupt
-  puts "Exiting..."
+
+  def get_available_input
+    input = console_file.getc
+    while console_file.ready?
+      input += console_file.getc
+    end
+    input
+  end
+
+  def puts
+    console_file.puts
+  end
+
+  def winsize
+    console_file.winsize
+  end
+
+  def stty(args)
+    command("stty #{args}").strip
+  end
+
+  private
+
+  # Run a command with the TTY as stdin, capturing the output via a pipe
+  def command(command)
+    IO.pipe do |read_io, write_io|
+      pid = Process.spawn(command, :in => "/dev/tty", :out => write_io)
+      Process.wait(pid)
+      raise "Command failed: #{command.inspect}" unless $?.success?
+      write_io.close
+      read_io.read
+    end
+  end
+end
+
+class Least
+  def main
+    tty = TTY.new(IO.console)
+    original_tty_state = tty.stty("-g")
+    tty.stty("raw")
+
+    @buffer = []
+    @current_line = 0
+
+    print ANSI.clear
+    print ANSI.cursor_top
+    puts "This should be the top?"
+    loop do
+      ui_loop
+    end
+  rescue
+    puts "Exiting..."
+  ensure
+    tty.stty(original_tty_state)
+  end
+
+  def ui_loop
+    return if STDIN.eof?
+
+    # Process user input
+    console_file = IO.console
+    input = ""
+
+    while console_file.ready?
+      input_character = console_file.getc
+      case input_character
+      when KEY_CTRL_C
+        raise "We should exit now"
+      else
+        input += input_character.upcase
+      end
+    end
+
+    puts "input: #{input}" unless input.empty?
+
+    # Process pipe input
+    @buffer << STDIN.readline
+    puts @buffer[@current_line]
+
+    if @current_line == 2
+      puts "Pausing for three seconds"
+      sleep 3
+    end
+
+    @current_line += 1
+  end
 end
 
 if __FILE__ == $0
-  main
+  Least.new.main
 end
+
