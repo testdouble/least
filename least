@@ -2,7 +2,15 @@
 require 'io/console'
 require 'io/wait'
 
+module Comparable
+  def clamp(min,max)
+    [min,self,max].sort[1]
+  end
+end
+
 KEY_CTRL_C = ?\C-c
+KEY_CTRL_P = ?\C-p
+KEY_CTRL_N = ?\C-n
 
 class ANSI
   ESC = 27.chr
@@ -36,12 +44,25 @@ class TTY < Struct.new(:console_file)
     block.call(tty)
   end
 
+  def clear
+    print ANSI.clear
+    print ANSI.cursor_top
+  end
+
   def get_available_input
     console_file.getc if console_file.ready?
   end
 
   def winsize
     console_file.winsize
+  end
+
+  def height
+    winsize.first
+  end
+
+  def width
+    winsize.last
   end
 
   def stty(args)
@@ -67,21 +88,82 @@ class TTY < Struct.new(:console_file)
   end
 end
 
+class Terminal
+  attr_reader :tty, :buffer, :current_line_index
+
+  def initialize(tty, buffer, current_line_index = 0, paused = true)
+    @tty = tty
+    @buffer = buffer
+    @current_line_index = current_line_index.clamp(0,buffer.count-1) if paused
+    @paused = paused
+  end
+
+  def current_height
+    tty.height
+  end
+
+  def view
+    if @paused
+      pad(buffer[current_line_index...(current_line_index+current_height)])
+    else
+      beginning_index = buffer.count - current_height
+      buffer[beginning_index..-1]
+    end
+  end
+
+  def pad(arr)
+    padding_needed = [0, current_height - arr.size].max
+    arr + ([''] * padding_needed)
+  end
+
+  def move_down
+    Terminal.new(tty, buffer, current_line_index + 1)
+  end
+
+  def move_up
+    Terminal.new(tty, buffer, current_line_index - 1)
+  end
+
+  def pause
+    current_line = (buffer.count - current_height).clamp(0, buffer.count)
+    Terminal.new(tty, buffer, current_line, true)
+  end
+
+  def resume
+    Terminal.new(tty, buffer, nil, false)
+  end
+
+  def toggle_pause
+    if @paused
+      resume
+    else
+      pause
+    end
+  end
+
+  def refresh
+    tty.clear
+    view.each do |line|
+      tty.write_line line
+    end
+  end
+end
+
 class Least
-  attr_reader :tty
+  attr_reader :tty, :terminal, :buffer
 
   def main
     @tty = TTY.new(IO.console)
+    @buffer = []
+    @terminal = Terminal.new(tty, buffer, nil, false)
     original_tty_state = tty.stty("-g")
     tty.stty("raw")
 
-    @paused = false
-
-    print ANSI.clear
-    print ANSI.cursor_top
     loop do
+      old_view = terminal.view
       handle_user_input
-      handle_piped_input unless @paused
+      handle_piped_input
+      terminal.refresh unless old_view == @terminal.view
     end
   rescue Interrupt, RuntimeError
     puts "Exiting..."
@@ -96,21 +178,22 @@ class Least
     case input
     when KEY_CTRL_C
       raise "We should exit now"
+    when KEY_CTRL_N
+      @terminal = terminal.move_down
+    when KEY_CTRL_P
+      @terminal = terminal.move_up
     when ' '
-      @paused = @paused ? false : true
+      @terminal = terminal.toggle_pause
     end
-
-    tty.write_line "input: #{input}" if input
   end
 
   def handle_piped_input
     return if STDIN.eof?
 
-    tty.write_line STDIN.readline
+    buffer << STDIN.readline
   end
 end
 
 if __FILE__ == $0
   Least.new.main
 end
-
