@@ -75,11 +75,13 @@ class Least
     original_tty_state = tty.stty("-g")
     tty.stty("raw")
 
+    @paused = false
+
     print ANSI.clear
     print ANSI.cursor_top
     loop do
       handle_user_input
-      handle_piped_input
+      handle_piped_input unless @paused
     end
   rescue Interrupt, RuntimeError
     puts "Exiting..."
@@ -94,6 +96,8 @@ class Least
     case input
     when KEY_CTRL_C
       raise "We should exit now"
+    when ' '
+      @paused = @paused ? false : true
     end
 
     tty.write_line "input: #{input}" if input
