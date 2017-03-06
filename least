@@ -1,0 +1,8 @@
+#!/usr/bin/env ruby
+
+loop do
+  break if STDIN.eof?
+
+  line = STDIN.readline
+  puts line
+end
