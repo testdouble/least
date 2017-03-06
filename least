@@ -1,7 +1,27 @@
 #!/usr/bin/env ruby
 
+class ANSI
+  ESC = 27.chr
+
+  class << self
+    def escape(sequence)
+      ESC + "[" + sequence
+    end
+
+    def clear
+      escape "2J"
+    end
+
+    def cursor_top
+      escape "H"
+    end
+  end
+end
+
 def main
-  system("clear")
+  print ANSI.clear
+  print ANSI.cursor_top
+  puts "This should be the top?"
   loop do
     break if STDIN.eof?
 
