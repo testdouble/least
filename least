@@ -19,6 +19,10 @@ class ANSI
     def cursor_top
       escape "H"
     end
+
+    def cursor_beginnning_of_line
+      escape "G"
+    end
   end
 end
 
@@ -77,7 +81,6 @@ class Least
 
     print ANSI.clear
     print ANSI.cursor_top
-    puts "This should be the top?"
     loop do
       ui_loop
     end
@@ -88,12 +91,11 @@ class Least
   end
 
   def ui_loop
-    return if STDIN.eof?
-
     # Process user input
     console_file = IO.console
     input = ""
 
+    # Handle user input
     while console_file.ready?
       input_character = console_file.getc
       case input_character
@@ -104,18 +106,27 @@ class Least
       end
     end
 
-    puts "input: #{input}" unless input.empty?
+    write_line "input: #{input}" unless input.empty?
+
+    # Handle STDIN
+    return if STDIN.eof?
 
     # Process pipe input
     @buffer << STDIN.readline
-    puts @buffer[@current_line]
+    write_line @buffer[@current_line]
 
     if @current_line == 2
-      puts "Pausing for three seconds"
+      write_line "Pausing for three seconds"
       sleep 3
     end
 
     @current_line += 1
+  end
+
+  # Write a line and jump back to the beginning of the line
+  def write_line(message)
+    puts message
+    print ANSI.cursor_beginnning_of_line
   end
 end
 
