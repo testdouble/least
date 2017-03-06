@@ -106,7 +106,7 @@ class Terminal
 
   def view
     if @paused
-      pad(buffer[current_line_index...(current_line_index+current_height)])
+      pad(buffer[current_line_index...(current_line_index+current_height-1)])
     else
       beginning_index = [0, buffer.count - current_height].max
       pad(buffer[beginning_index..-1])
@@ -114,7 +114,7 @@ class Terminal
   end
 
   def pad(arr)
-    padding_needed = [0, current_height - arr.size].max
+    padding_needed = [0, current_height - arr.size - 1].max
     arr + ([''] * padding_needed)
   end
   
@@ -180,10 +180,10 @@ class Least
     tty.stty("raw")
 
     loop do
-      old_view = terminal.view
       handle_user_input
       handle_piped_input
-      terminal.refresh unless old_view == @terminal.view
+
+      terminal.refresh
     end
   rescue Interrupt, RuntimeError
     puts "Exiting..."
@@ -214,7 +214,7 @@ class Least
   def handle_piped_input
     return if STDIN.eof?
 
-    buffer << STDIN.readline
+    buffer << STDIN.readline.strip
   end
 end
 
