@@ -1,6 +1,7 @@
 #!/usr/bin/env ruby
 
 def main
+  system("clear")
   loop do
     break if STDIN.eof?
 
