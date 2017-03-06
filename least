@@ -1,8 +1,14 @@
 #!/usr/bin/env ruby
 
-loop do
-  break if STDIN.eof?
+def main
+  loop do
+    break if STDIN.eof?
 
-  line = STDIN.readline
-  puts line
+    line = STDIN.readline
+    puts line
+  end
+rescue Interrupt
+  puts "Exiting..."
 end
+
+main
