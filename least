@@ -108,8 +108,8 @@ class Terminal
     if @paused
       pad(buffer[current_line_index...(current_line_index+current_height)])
     else
-      beginning_index = buffer.count - current_height
-      buffer[beginning_index..-1]
+      beginning_index = [0, buffer.count - current_height].max
+      pad(buffer[beginning_index..-1])
     end
   end
 
