@@ -37,15 +37,7 @@ class TTY < Struct.new(:console_file)
   end
 
   def get_available_input
-    input = console_file.getc
-    while console_file.ready?
-      input += console_file.getc
-    end
-    input
-  end
-
-  def puts
-    console_file.puts
+    console_file.getc if console_file.ready?
   end
 
   def winsize
@@ -54,6 +46,11 @@ class TTY < Struct.new(:console_file)
 
   def stty(args)
     command("stty #{args}").strip
+  end
+
+  def write_line(line)
+    console_file.puts line
+    print ANSI.cursor_beginnning_of_line
   end
 
   private
@@ -71,62 +68,41 @@ class TTY < Struct.new(:console_file)
 end
 
 class Least
+  attr_reader :tty
+
   def main
-    tty = TTY.new(IO.console)
+    @tty = TTY.new(IO.console)
     original_tty_state = tty.stty("-g")
     tty.stty("raw")
-
-    @buffer = []
-    @current_line = 0
 
     print ANSI.clear
     print ANSI.cursor_top
     loop do
-      ui_loop
+      handle_user_input
+      handle_piped_input
     end
-  rescue
+  rescue Interrupt, RuntimeError
     puts "Exiting..."
   ensure
     tty.stty(original_tty_state)
   end
 
-  def ui_loop
-    # Process user input
-    console_file = IO.console
-    input = ""
+  def handle_user_input
+    input = tty.get_available_input
 
-    # Handle user input
-    while console_file.ready?
-      input_character = console_file.getc
-      case input_character
-      when KEY_CTRL_C
-        raise "We should exit now"
-      else
-        input += input_character.upcase
-      end
+    # Handle special characters
+    case input
+    when KEY_CTRL_C
+      raise "We should exit now"
     end
 
-    write_line "input: #{input}" unless input.empty?
-
-    # Handle STDIN
-    return if STDIN.eof?
-
-    # Process pipe input
-    @buffer << STDIN.readline
-    write_line @buffer[@current_line]
-
-    if @current_line == 2
-      write_line "Pausing for three seconds"
-      sleep 3
-    end
-
-    @current_line += 1
+    tty.write_line "input: #{input}" if input
   end
 
-  # Write a line and jump back to the beginning of the line
-  def write_line(message)
-    puts message
-    print ANSI.cursor_beginnning_of_line
+  def handle_piped_input
+    return if STDIN.eof?
+
+    tty.write_line STDIN.readline
   end
 end
 
