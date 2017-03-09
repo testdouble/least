@@ -22,8 +22,12 @@ class ANSI
       ESC + "[" + sequence
     end
 
-    def clear
+    def clear_screen
       escape "2J"
+    end
+
+    def clear_line
+      escape "K"
     end
 
     def cursor_top
@@ -32,6 +36,14 @@ class ANSI
 
     def cursor_beginnning_of_line
       escape "G"
+    end
+
+    def cursor_hide
+      escape "?25l"
+    end
+
+    def cursor_show
+      escape "?25h"
     end
   end
 end
@@ -47,7 +59,7 @@ class TTY < Struct.new(:console_file)
   end
 
   def clear
-    print ANSI.clear
+    print ANSI.clear_screen
     print ANSI.cursor_top
   end
 
@@ -72,8 +84,9 @@ class TTY < Struct.new(:console_file)
   end
 
   def write_line(line)
-    console_file.puts line
+    print ANSI.clear_line
     print ANSI.cursor_beginnning_of_line
+    console_file.puts line
   end
 
   private
@@ -120,7 +133,7 @@ class Terminal
     padding_needed = [0, current_height - arr.size - 1].max
     arr + ([''] * padding_needed)
   end
-  
+
   def move_down_line
     move_down 1
   end
@@ -128,7 +141,7 @@ class Terminal
   def move_up_line
     move_up 1
   end
-  
+
   def move_down_page
     move_down current_height
   end
@@ -155,10 +168,12 @@ class Terminal
   end
 
   def refresh
-    tty.clear
+    print ANSI.cursor_hide
+    print ANSI.cursor_top
     view.each do |line|
       tty.write_line line
     end
+    print ANSI.cursor_show
   end
 
   private
@@ -179,6 +194,7 @@ class Least
     @tty = TTY.new(IO.console)
     @buffer = []
     @terminal = Terminal.new(tty, buffer, nil, false)
+    @update_needed = false
     original_tty_state = tty.stty("-g")
     tty.stty("raw")
 
@@ -186,12 +202,16 @@ class Least
       handle_user_input
       handle_piped_input
 
-      terminal.refresh
+      terminal.refresh if needs_updated?
     end
   rescue Interrupt, RuntimeError
     puts "Exiting..."
   ensure
     tty.stty(original_tty_state)
+  end
+
+  def update_needed?
+    @update_needed
   end
 
   def handle_user_input
@@ -211,11 +231,16 @@ class Least
       @terminal = terminal.move_up_page
     when ' '
       @terminal = terminal.toggle_pause
+    else
+      return
     end
+
+    @update_needed = true
   end
 
   def handle_piped_input
     return if STDIN.eof?
+    @update_needed = true
 
     buffer << STDIN.readline.strip
   end
